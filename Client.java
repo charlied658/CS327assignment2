@@ -80,8 +80,8 @@ public class Client{
       System.out.println("Client Connected");
 
       //Create input/output streams
-      //output = new ObjectOutputStream(clientSocket.getOutputStream());
-      //input = new ObjectInputStream(clientSocket.getInputStream());
+      output = new ObjectOutputStream(clientSocket.getOutputStream());
+      input = new ObjectInputStream(clientSocket.getInputStream());
       //System.out.println("Client Input/Output Streams Connected");
 
       //Return 1 if successful
