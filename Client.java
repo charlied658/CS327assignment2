@@ -67,7 +67,8 @@ public class Client{
       }
     } catch (Exception e){
       //Exception handling
-      System.out.println("Exception: "+e);
+      //System.out.println("Exception: "+e);
+      e.printStackTrace();
     }
   }
 
@@ -75,21 +76,25 @@ public class Client{
   public static int startOverlay(){
     try{
       InetAddress ip = InetAddress.getByName("localhost");
-      clientSocket = new Socket(ip, 59091);
+      clientSocket = new Socket(ip, 59090);
       //clientSocket.connect(addr);
       System.out.println("Client Connected");
 
       //Create input/output streams
       output = new ObjectOutputStream(clientSocket.getOutputStream());
+      System.out.println("OutputStream");
+      //ObjectInputStream a = new ObjectInputStream(clientSocket.getInputStream());
+      //System.out.println("DataInputStream");
       input = new ObjectInputStream(clientSocket.getInputStream());
-      //System.out.println("Client Input/Output Streams Connected");
+      System.out.println("Client Input/Output Streams Connected");
 
       //Return 1 if successful
       return 1;
     }
     catch(Exception e){
       //If an exception was caught, print the result (for debugging) and return -1
-      System.out.println("Exception: "+e);
+      //System.out.println("Exception: "+e);
+      e.printStackTrace();
       return -1;
     }
   }
@@ -138,9 +143,10 @@ public class Client{
         public void run(){
           try{
             //Write the SYN to the OutputStream
-            output = new ObjectOutputStream(clientSocket.getOutputStream());
+            //output = new ObjectOutputStream(clientSocket.getOutputStream());
             output.writeObject(syn);
             System.out.println("Sent SYN");
+            //output.flush();
             //System.out.println(retryCount);
             //System.out.println(SYN_MAX_RETRY);
             //Increment the retryCount variable each time
@@ -157,12 +163,12 @@ public class Client{
       table[socksr].stateClient=2;
 
       //Keep sending the SYN until the maximum number of retries is met or exceeded
-      while(retryCount<=SYN_MAX_RETRY){
+      while(retryCount<SYN_MAX_RETRY){
         //System.out.println("while");
         //If the thread is dead
         if(!segHandler.isAlive()){
           //and the ListenThread received a segment of type 1, SYNACK
-          System.out.println("segHandler is dead");
+          //System.out.println("segHandler is dead");
           if(segment.type==1){
             //Cancel the timer
             timer.cancel();
@@ -176,7 +182,7 @@ public class Client{
             return 1;
           }
           else{
-            //If ListenTherad found a Segment which wasn't a SYNACK, start the Thread up again
+            //If ListenThread found a Segment which wasn't a SYNACK, start the Thread up again
             segHandler = new Thread(listenThread);
             segHandler.start();
           }
@@ -207,46 +213,51 @@ public class Client{
       final TimerTask task = new TimerTask(){
         public void run(){
           try{
-            output = new ObjectOutputStream(clientSocket.getOutputStream());
             output.writeObject(fin);
+            //output.flush();
             System.out.println("Sent FIN");
             Client.retryCount+=1;
           }
           catch(Exception e){
-            System.out.println("Exception: "+e);
+            e.printStackTrace();
           }
         };
       };
 
+      //segHandler = new Thread(listenThread);
+      //segHandler.start();
       //Send a FIN once every FIN_TIMEOUT ms
       timer.schedule(task,0,FIN_TIMEOUT);
       table[socksr].stateClient=4;
-      while(retryCount<=FIN_MAX_RETRY){
+      while(retryCount<FIN_MAX_RETRY){
         if(!segHandler.isAlive()){
+          //System.out.println("Segment type: "+segment.type);
           if(segment.type==3){
             //If ListenThread received a segment of type 3, FINACK
             timer.cancel();
             System.out.println("Received FINACK");
             //Change state to 1, CLOSED
             table[socksr].stateClient=1;
-            segHandler = new Thread(listenThread);
-            segHandler.start();
+            //segHandler = new Thread(listenThread);
+            //segHandler.start();
             //Return out of the method
             return 1;
           }
           else{
             //If ListenThread did not find a FINACK, restart ListenThread
+            listenThread = new ListenThread(0,0);
             segHandler = new Thread(listenThread);
             segHandler.start();
           }
         }
       }
+      timer.cancel();
       //If FIN_MAX_RETRY was exceeded, change state to CLOSED and return -1
       table[socksr].stateClient=1;
       return -1;
     }
     catch(Exception e){
-      //System.out.println("Exception: "+e);
+      e.printStackTrace();
       return -1;
     }
   }
@@ -267,8 +278,9 @@ public class Client{
   public static int stopOverlay(){
     try{
       //Write a custom Segment of type -1 to shut down the thread, which is listening for a segment (not the best solution)
-      output.writeObject(new Segment(-1));
+      //output.writeObject(new Segment(-1));
       //Interrupt the thread
+      listenThread.stop();
       segHandler.interrupt();
 
       //Close input/output streams and the socket
